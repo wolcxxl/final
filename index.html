@@ -3,327 +3,234 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    
-    <!-- ВАЖНО: Скрывает источник запроса от Google, чтобы обойти блокировку -->
-    <meta name="referrer" content="no-referrer">
-    
-    <title>ReaderTranslate</title>
-    
-    <!-- PWA -->
+    <title>Smart Reader v48 (Library)</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#252526">
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%23007acc'><path d='M464 64H48C21.5 64 0 85.5 0 112v288c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48zM240 384H64V128h176v256zm192 0H272V128h160v256z'/></svg>">
-    <link rel="manifest" id="manifest-placeholder">
-
-    <!-- Libs -->
+    <meta name="theme-color" content="#2d2d30">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%23007acc'><path d='M464 64H48C21.5 64 0 85.5 0 112v288c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48z'/></svg>">
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
 
     <style>
-        :root {
-            --bg: #1e1e1e;
-            --text: #d4d4d4;
-            --accent: #007acc;
-            --border: #3e3e42;
-            --highlight: #2d333b;
-            --success: #4ec9b0;
-            --danger: #f14c4c;
-            --font-size: 18px;
-        }
-
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-        body {
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            touch-action: pan-y;
-        }
-
-        /* --- HEADER --- */
-        #menu-bar {
-            height: 30px;
-            background: #2d2d30;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border-bottom: 1px solid #444;
-            flex-shrink: 0;
-            z-index: 101;
-            position: relative;
-        }
-
-        #menu-toggle {
-            background: #444;
-            color: #fff;
-            border: 1px solid #555;
-            border-top: none;
-            border-radius: 0 0 10px 10px;
-            padding: 0 30px;
-            height: 24px;
-            line-height: 24px;
-            cursor: pointer;
-            font-size: 20px;
-            margin-top: -1px; 
-        }
-
-        #settings-panel {
-            background: #252526;
-            border-bottom: 1px solid var(--border);
-            overflow: hidden;
-            max-height: 0;
-            transition: max-height 0.3s ease-out;
-            flex-shrink: 0;
-            z-index: 100;
-        }
-
-        #settings-panel.open {
-            max-height: 120px;
-        }
-
-        .menu-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 8px 10px;
-            gap: 10px;
-        }
-
-        .group { display: flex; align-items: center; gap: 8px; }
-
-        /* Controls */
-        .file-wrapper {
-            position: relative; overflow: hidden; background: #007acc; color: white;
-            padding: 0 12px; border-radius: 4px; cursor: pointer; display: flex; align-items: center;
-            height: 30px; font-size: 13px; white-space: nowrap;
-        }
-        .file-wrapper input { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; }
-
-        select {
-            background: #3e3e42; color: white; border: 1px solid #555;
-            padding: 0 5px; border-radius: 4px; font-size: 13px; height: 30px;
-        }
-
-        button {
-            background: #444; color: white; border: none;
-            padding: 0 12px; border-radius: 4px; cursor: pointer; font-size: 13px; height: 30px;
-            display: flex; align-items: center; justify-content: center;
-        }
-        button:disabled { opacity: 0.5; pointer-events: none; }
-        button.active-state { background: #fff; color: #000; }
-        .icon-btn { width: 34px; padding: 0; font-size: 16px; }
-
-        #progressBar {
-            position: fixed; top: 0; left: 0; height: 3px; background: #00ff00; width: 0%; 
-            z-index: 10002; transition: width 0.2s;
-        }
-
-        /* --- CONTAINER --- */
-        #container {
-            display: flex; flex: 1; width: 100%; height: 100%;
-            overflow: hidden; flex-direction: column;
-        }
-
-        .panel {
-            flex: 1; display: flex; flex-direction: column; overflow: hidden;
-            min-height: 50px; min-width: 50px; position: relative;
-        }
-
-        .panel-head {
-            background: #202020; padding: 0 10px; height: 32px;
-            font-size: 0.75em; color: #888; font-weight: 600; letter-spacing: 0.5px;
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid #333; flex-shrink: 0; text-transform: uppercase;
-        }
-
-        .trans-controls { display: flex; gap: 8px; }
-        .btn-tiny { padding: 0 10px; font-size: 11px; height: 22px; border-radius: 4px; }
-        .btn-start { background: var(--success); color: black; font-weight: bold; }
-        .btn-stop { background: var(--danger); }
-
-        .content-area {
-            flex: 1; overflow-y: auto; padding: 15px; 
-            font-size: var(--font-size); line-height: 1.5;
-            -webkit-overflow-scrolling: touch; touch-action: pan-y;
-        }
+        :root{--bg:#1e1e1e;--panel:#252526;--text:#d4d4d4;--accent:#007acc;--border:#3e3e42;--highlight:#2d333b;--success:#4ec9b0;--danger:#f14c4c;--font-size:18px}
+        *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+        body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;touch-action:pan-y}
         
+        /* VIEWS */
+        #library-view, #reader-view { width: 100%; height: 100%; overflow: hidden; display: none; flex-direction: column; }
+        #library-view.active, #reader-view.active { display: flex; }
+
+        /* LIBRARY STYLES */
+        .lib-header { padding: 15px; background: #2d2d30; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .lib-title { font-size: 20px; font-weight: bold; color: #fff; }
+        .add-book-btn { background: var(--accent); color: white; border: none; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        
+        .lib-grid { flex: 1; overflow-y: auto; padding: 15px; display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 15px; align-content: start; }
+        
+        .book-card { background: #252526; border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; border: 1px solid #333; transition: transform 0.1s; display: flex; flex-direction: column; }
+        .book-card:active { transform: scale(0.98); }
+        .book-cover { height: 140px; background: #333; display: flex; align-items: center; justify-content: center; color: #666; font-size: 30px; position: relative; }
+        .book-cover img { width: 100%; height: 100%; object-fit: cover; }
+        .book-info { padding: 8px; flex: 1; display: flex; flex-direction: column; }
+        .book-title { font-size: 12px; font-weight: bold; color: #eee; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .book-fmt { font-size: 10px; color: var(--accent); margin-top: auto; text-transform: uppercase; }
+        .delete-btn { position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.6); color: #fff; border: none; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 10; }
+
+        /* READER STYLES (Existing) */
+        header { height: 50px; background: #2d2d30; display: flex; align-items: center; border-bottom: 1px solid var(--border); padding: 0 10px; gap: 10px; flex-shrink: 0; }
+        #menu-toggle { position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 200; background: rgba(45,45,48,0.95); color: #fff; border: 1px solid #555; border-top: none; border-radius: 0 0 8px 8px; padding: 4px 25px; cursor: pointer; font-size: 20px; line-height: 1; }
+        #main-header { height: 0; overflow: hidden; background: #2d2d30; transition: height 0.3s; border-bottom: 1px solid transparent; display: flex; flex-direction: column; padding: 0 10px; gap: 5px; position: relative; z-index: 100; }
+        #main-header.open { height: 90px; border-bottom-color: var(--border); padding-top: 10px; padding-bottom: 10px; }
+        .menu-row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px; height: 35px; }
+        .group { display: flex; align-items: center; gap: 5px; }
+        select { background: #3e3e42; color: white; border: 1px solid #555; padding: 4px; border-radius: 6px; font-size: 13px; }
+        button { background: var(--accent); color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 13px; }
+        button:disabled { background: #333; color: #666; }
+        .icon-btn { width: 32px; padding: 0; display: flex; justify-content: center; align-items: center; }
+        button.active-state { background: #fff; color: #000; }
+        
+        #container { display: flex; flex: 1; width: 100%; height: 100%; overflow: hidden; flex-direction: column; }
+        .panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 50px; position: relative; }
+        .panel-head { background: #202020; padding: 0 10px; height: 30px; font-size: 0.75em; color: #888; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; flex-shrink: 0; text-transform: uppercase; }
+        .content-area { flex: 1; overflow-y: auto; padding: 15px; font-size: var(--font-size); line-height: 1.5; touch-action: pan-y; }
         .font-serif .content-area { font-family: 'Georgia', serif; }
         .font-mono .content-area { font-family: monospace; }
         .font-bold .content-area { font-weight: 600; }
-
-        .resizer {
-            background: #111; z-index: 50; display: flex; justify-content: center; align-items: center;
-            flex-shrink: 0; touch-action: none; min-height: 12px;
-        }
+        .resizer { background: #111; z-index: 50; display: flex; justify-content: center; align-items: center; flex-shrink: 0; min-height: 12px; }
         .resizer::after { content: ""; width: 30px; height: 3px; background: #444; border-radius: 2px; }
-        .resizer.active, .resizer:hover { background: #333; }
-
-        /* Text Blocks */
-        .orig-p { margin-bottom: 1em; text-align: justify; padding: 2px; }
         
-        .trans-p {
-            margin-bottom: 1em; padding: 6px 18px 6px 6px;
-            border: 1px solid #333; border-radius: 4px;
-            cursor: pointer; position: relative; 
-            background: #232323; min-height: 1.5em; text-align: justify;
-        }
-        .trans-marker { position: absolute; top: 4px; right: 4px; font-size: 12px; opacity: 0.5; }
+        .orig-p { margin-bottom: 1em; text-align: justify; padding: 2px; }
+        .trans-p { margin-bottom: 1em; padding: 4px 18px 4px 4px; border: 1px solid #333; border-radius: 4px; cursor: pointer; position: relative; background: #232323; min-height: 1.5em; text-align: justify; }
+        .trans-p.translated { border-color: transparent; background: transparent; cursor: text; padding: 2px; border-left: 2px solid var(--accent); padding-left: 8px; }
+        .trans-p.current { border-color: var(--success); background: rgba(78,201,176,0.1); }
+        .trans-marker { position: absolute; top: 2px; right: 2px; font-size: 12px; opacity: 0.6; pointer-events: none; }
         .trans-p.translated .trans-marker { display: none; }
-        .trans-p.translated { 
-            border-color: transparent; background: transparent; cursor: text; 
-            padding: 2px; border-left: 3px solid var(--accent); padding-left: 10px; border-radius: 0;
-        }
-        .trans-p.current { border-color: var(--success); background: rgba(78, 201, 176, 0.1); }
-        .trans-p.error { border-color: red; }
-
-        .word { cursor: pointer; border-radius: 2px; user-select: text; -webkit-user-select: text; }
+        
+        .word { cursor: pointer; border-radius: 2px; }
         .word:active, .word.active { background: var(--accent); color: white; }
 
-        /* Tooltip */
-        #tooltip {
-            position: absolute; display: none;
-            background: rgba(40, 40, 40, 0.98); border: 1px solid #555;
-            padding: 12px; border-radius: 8px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-            z-index: 9999; max-width: 280px; text-align: center;
-            backdrop-filter: blur(10px);
-        }
+        #tooltip { position: absolute; display: none; background: rgba(40,40,40,0.98); border: 1px solid #555; padding: 12px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); z-index: 9999; max-width: 250px; text-align: center; backdrop-filter: blur(10px); }
         .tt-header { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 6px; }
         .t-word { font-weight: 700; color: #fff; font-size: 1.2em; }
-        .t-tts-btn {
-            background: transparent; border: 1px solid #666; color: #ccc; 
-            border-radius: 50%; width: 28px; height: 28px; font-size: 14px; padding: 0;
-            display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
-        }
-        .t-tts-btn.playing { background: var(--success); color: #000; border-color: var(--success); }
-        
         .t-ipa { color: #8cf; font-size: 0.9em; display: block; margin-bottom: 2px; }
         .t-rus { color: #aaa; font-style: italic; font-size: 0.9em; display: block; margin-bottom: 8px; }
-        
-        .t-trans { 
-            color: #ddd; display:block; margin-bottom: 10px; font-size: 1.1em; line-height: 1.3; 
-            border-top: 1px solid #555; padding-top: 8px; 
-            max-height: 200px; overflow-y: auto;
-        }
+        .t-trans { color: #ddd; display:block; margin-bottom: 10px; font-size: 1.1em; border-top: 1px solid #555; padding-top: 8px; }
         .close-tip { width: 100%; padding: 6px; background: rgba(255,255,255,0.1); border:none; color:#ccc; border-radius:4px; font-size:11px; }
-
-        /* Action Bar */
-        #selection-bar {
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            z-index: 10002; display: none;
-        }
-        #selection-bar.visible { display: block; animation: slideUp 0.2s ease-out; }
-        @keyframes slideUp { from{transform:translate(-50%, 20px); opacity:0} to{transform:translate(-50%, 0); opacity:1} }
         
-        .action-btn {
-            background: var(--accent); color: white; border: none;
-            padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 14px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: flex; align-items: center; gap: 8px;
-        }
+        #selection-bar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10002; display: none; }
+        #selection-bar.visible { display: block; animation: slideUp 0.2s; }
+        @keyframes slideUp { from{transform:translate(-50%,20px);opacity:0} to{transform:translate(-50%,0);opacity:1} }
+        .action-btn { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
 
-        #statusLine {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            background: #2d2d30; color: #888; font-size: 10px;
-            padding: 2px 10px; text-align: right; z-index: 9000; pointer-events: none;
-        }
-        #loader {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.8);
-            display: none; justify-content: center; align-items: center;
-            color: white; z-index: 2000; flex-direction: column;
-        }
+        #loader { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; color: white; z-index: 2000; flex-direction: column; }
     </style>
 </head>
 <body>
 
-<div id="progressBar"></div>
+<!-- VIEW 1: LIBRARY -->
+<div id="library-view" class="active">
+    <div class="lib-header">
+        <span class="lib-title">Мои книги</span>
+        <label class="add-book-btn">
+            <span>+ Добавить</span>
+            <input type="file" id="libFileInput" style="display:none">
+        </label>
+    </div>
+    <div class="lib-grid" id="bookGrid">
+        <!-- Books go here -->
+    </div>
+</div>
 
-<!-- STABLE MENU -->
-<div id="menu-bar">
+<!-- VIEW 2: READER -->
+<div id="reader-view">
+    <div id="progressBar"></div>
     <button id="menu-toggle" title="Настройки">☰</button>
-</div>
 
-<div id="settings-panel">
-    <div class="menu-row">
-        <div class="file-wrapper"><span>📂 Открыть</span><input type="file" id="fileInput"></div>
-        <div class="group">
-            <select id="fontFamily" style="width:65px">
-                <option value="ui">Sans</option><option value="serif">Serif</option><option value="mono">Mono</option>
-            </select>
-            <select id="fontSize" style="width:50px">
-                <option value="14px">14</option><option value="16px">16</option><option value="18px" selected>18</option>
-                <option value="20px">20</option><option value="24px">24</option><option value="30px">30</option>
-            </select>
-            <button id="boldToggle" class="icon-btn" title="Жирный" style="font-weight:bold; width:30px">B</button>
-        </div>
-    </div>
-    <div class="menu-row">
-        <div class="group">
-            <select id="srcLang"><option value="auto">Auto</option><option value="en">EN</option><option value="de">DE</option><option value="fr">FR</option></select>
-            <span style="color:#666">→</span>
-            <select id="tgtLang"><option value="ru">RU</option><option value="en">EN</option><option value="uk">UK</option></select>
-        </div>
-        
-        <button id="layoutBtn" class="icon-btn" title="Вид">⬍</button>
-
-        <div class="group" id="controls" style="display:none;">
-            <button id="prevBtn" class="icon-btn">←</button>
-            <select id="chapterSelect" style="max-width:80px"></select>
-            <button id="nextBtn" class="icon-btn">→</button>
-        </div>
-    </div>
-</div>
-
-<div id="container">
-    <div id="panel1" class="panel">
-        <div class="panel-head">Оригинал</div>
-        <div id="origPanel" class="content-area">
-            <div style="text-align:center; margin-top:30vh; color:#555;">
-                <p>Поддерживаемые форматы PDF FB2 EPUB ZIP</p>
-                <p>Приятного чтения!.</p>
+    <header id="main-header">
+        <div class="menu-row top-row">
+            <button id="backToLib" class="icon-btn" style="width:auto; padding:0 10px">⬅ Библиотека</button>
+            <div class="group">
+                <select id="fontFamily" style="width:65px"><option value="ui">Sans</option><option value="serif">Serif</option><option value="mono">Mono</option></select>
+                <select id="fontSize" style="width:50px"><option value="16px">16</option><option value="18px" selected>18</option><option value="20px">20</option><option value="24px">24</option></select>
+                <button id="boldToggle" class="icon-btn" style="font-weight:bold; width:30px">B</button>
             </div>
         </div>
-    </div>
-    <div id="resizer" class="resizer" style="height: 12px; width: 100%; cursor: row-resize;"></div>
-    <div id="panel2" class="panel">
-        <div class="panel-head">
-            <span>Перевод</span>
-            <div class="trans-controls">
-                <button id="btnStart" class="btn-tiny btn-start">▶ Старт</button>
-                <button id="btnStop" class="btn-tiny btn-stop" disabled>■</button>
+        <div class="menu-row">
+            <div class="group">
+                <select id="srcLang"><option value="auto">Auto</option><option value="en">EN</option><option value="de">DE</option></select>
+                <span>→</span>
+                <select id="tgtLang"><option value="ru">RU</option><option value="en">EN</option></select>
+            </div>
+            <button id="layoutBtn" class="icon-btn">⬍</button>
+            <div class="group" id="controls" style="display:none;">
+                <button id="prevBtn" class="icon-btn">←</button>
+                <select id="chapterSelect" style="max-width:80px"></select>
+                <button id="nextBtn" class="icon-btn">→</button>
             </div>
         </div>
-        <div id="transPanel" class="content-area"></div>
+    </header>
+
+    <div id="container">
+        <div id="panel1" class="panel">
+            <div class="panel-head">Оригинал</div>
+            <div id="origPanel" class="content-area"></div>
+        </div>
+        <div id="resizer" class="resizer"></div>
+        <div id="panel2" class="panel">
+            <div class="panel-head">
+                <span>Перевод</span>
+                <div class="trans-controls"><button id="btnStart" class="btn-tiny" style="background:var(--success); color:black">▶</button><button id="btnStop" class="btn-tiny" style="background:var(--danger)">■</button></div>
+            </div>
+            <div id="transPanel" class="content-area"></div>
+        </div>
     </div>
 </div>
 
 <div id="tooltip"></div>
-
-<!-- ACTION BAR -->
-<div id="selection-bar">
-    <button class="action-btn" id="translateSelBtn">🌎 Перевести / 🔊</button>
-</div>
-
-<div id="statusLine">Ready</div>
+<div id="selection-bar"><button class="action-btn" id="translateSelBtn">🌎 Перевести / 🔊</button></div>
 <div id="loader"><div>Загрузка...</div></div>
 
 <script>
-    const manifest = {name:"Smart Reader",short_name:"Reader",start_url:".",display:"standalone",background_color:"#1e1e1e",theme_color:"#2d2d30",icons:[{src:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%23007acc'><rect width='512' height='512' fill='%232d2d30'/><path d='M464 64H48C21.5 64 0 85.5 0 112v288c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48zM240 384H64V128h176v256zm192 0H272V128h160v256z'/></svg>",sizes:"512x512",type:"image/svg+xml"}]};
-    document.getElementById('manifest-placeholder').setAttribute('href', URL.createObjectURL(new Blob([JSON.stringify(manifest)],{type:'application/json'})));
+    // --- DATABASE (IndexedDB) ---
+    const DB_NAME = 'SmartReaderDB', STORE_NAME = 'books';
+    let db;
 
+    function initDB() {
+        return new Promise((resolve) => {
+            const req = indexedDB.open(DB_NAME, 1);
+            req.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                }
+            };
+            req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+            req.onerror = () => alert("Ошибка БД");
+        });
+    }
+
+    async function saveBookToDB(file, meta) {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        await store.add({
+            name: meta.title || file.name,
+            file: file,
+            type: file.name.split('.').pop().toLowerCase(),
+            date: new Date()
+        });
+        loadLibrary();
+    }
+
+    async function deleteBook(id) {
+        if(!confirm("Удалить книгу?")) return;
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        await tx.objectStore(STORE_NAME).delete(id);
+        loadLibrary();
+    }
+
+    async function loadLibrary() {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.getAll();
+        
+        req.onsuccess = () => {
+            const books = req.result;
+            const grid = document.getElementById('bookGrid');
+            grid.innerHTML = '';
+            
+            if(books.length === 0) {
+                grid.innerHTML = '<div style="color:#666; width:100%; text-align:center">Библиотека пуста. Добавьте файл.</div>';
+                return;
+            }
+
+            books.forEach(book => {
+                const card = document.createElement('div');
+                card.className = 'book-card';
+                card.innerHTML = `
+                    <button class="delete-btn" onclick="event.stopPropagation(); deleteBook(${book.id})">×</button>
+                    <div class="book-cover">📖</div>
+                    <div class="book-info">
+                        <div class="book-title">${book.name}</div>
+                        <div class="book-fmt">${book.type}</div>
+                    </div>
+                `;
+                card.onclick = () => openBook(book.file);
+                grid.appendChild(card);
+            });
+        };
+    }
+
+    // --- READER LOGIC ---
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
     
     const ui = {
-        menuBtn: document.getElementById('menu-toggle'), settings: document.getElementById('settings-panel'),
-        file: document.getElementById('fileInput'), orig: document.getElementById('origPanel'), trans: document.getElementById('transPanel'),
+        libView: document.getElementById('library-view'), readerView: document.getElementById('reader-view'),
+        backBtn: document.getElementById('backToLib'), libInput: document.getElementById('libFileInput'),
+        menuBtn: document.getElementById('menu-toggle'), header: document.getElementById('main-header'),
+        orig: document.getElementById('origPanel'), trans: document.getElementById('transPanel'),
         controls: document.getElementById('controls'), chapSel: document.getElementById('chapterSelect'),
-        loader: document.getElementById('loader'), status: document.getElementById('statusLine'), tooltip: document.getElementById('tooltip'),
+        loader: document.getElementById('loader'), tooltip: document.getElementById('tooltip'),
         src: document.getElementById('srcLang'), tgt: document.getElementById('tgtLang'),
         container: document.getElementById('container'), panel1: document.getElementById('panel1'), panel2: document.getElementById('panel2'),
         resizer: document.getElementById('resizer'), layoutBtn: document.getElementById('layoutBtn'), bar: document.getElementById('progressBar'),
@@ -332,17 +239,50 @@
         selBar: document.getElementById('selection-bar'), selBtn: document.getElementById('translateSelBtn')
     };
 
-    let book, spine, currentIdx = 0, isTranslating = false, fb2Sections = [];
-    
-    ui.menuBtn.onclick = () => ui.settings.classList.toggle('open');
+    let book, spine, currentIdx=0, isTranslating=false, fb2Sections=[];
+
+    // Init
+    initDB().then(loadLibrary);
+
+    // Library Events
+    ui.libInput.addEventListener('change', async (e) => {
+        const f = e.target.files[0];
+        if(!f) return;
+        ui.loader.style.display = 'flex';
+        // Extract basic meta? Just name for now to be fast
+        await saveBookToDB(f, {title: f.name});
+        ui.loader.style.display = 'none';
+        ui.libInput.value = null;
+    });
+
+    ui.backBtn.onclick = () => {
+        ui.readerView.classList.remove('active');
+        ui.libView.classList.add('active');
+        ui.header.classList.remove('open');
+    };
+
+    async function openBook(file) {
+        ui.libView.classList.remove('active');
+        ui.readerView.classList.add('active');
+        
+        ui.loader.style.display = 'flex';
+        const n = file.name.toLowerCase();
+        try {
+            ui.controls.style.display = 'flex';
+            if(n.endsWith('.zip')) await loadZip(file);
+            else if(n.endsWith('.fb2')) await loadFb2(file);
+            else if(n.endsWith('.epub')) await loadEpub(file);
+            else if(n.endsWith('.pdf')) await loadPdf(file);
+            else render(await file.text());
+        } catch(e) { alert(e.message); }
+        finally { ui.loader.style.display = 'none'; }
+    }
+
+    // --- STANDARD READER FUNCTIONS (v46) ---
+    ui.menuBtn.onclick = () => ui.header.classList.toggle('open');
     ui.fontFam.onchange = () => { document.body.className = document.body.className.replace(/font-\w+/g, ''); if(ui.fontFam.value!=='ui') document.body.classList.add(`font-${ui.fontFam.value}`); };
     ui.fontSize.onchange = () => document.documentElement.style.setProperty('--font-size', ui.fontSize.value);
     ui.boldBtn.onclick = () => { document.body.classList.toggle('font-bold'); ui.boldBtn.classList.toggle('active-state'); ui.boldBtn.style.background = document.body.classList.contains('font-bold') ? '#fff' : '#444'; ui.boldBtn.style.color = document.body.classList.contains('font-bold') ? '#000' : '#fff'; };
-
-    const setStatus = (msg) => ui.status.innerText = msg;
-    const showLoad = () => ui.loader.style.display = 'flex';
-    const hideLoad = () => ui.loader.style.display = 'none';
-    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
     let isVertical = true;
     function updateLayout() {
@@ -355,6 +295,7 @@
     }
     ui.layoutBtn.onclick = () => { isVertical = !isVertical; updateLayout(); };
 
+    // Resizer logic
     let isResizing = false;
     const startR = (e) => { isResizing=true; if(e.type==='touchstart')e.preventDefault(); ui.resizer.classList.add('active'); };
     const stopR = () => { isResizing=false; ui.resizer.classList.remove('active'); };
@@ -369,18 +310,7 @@
     ui.resizer.addEventListener('mousedown', startR); document.addEventListener('mouseup', stopR); document.addEventListener('mousemove', doR);
     ui.resizer.addEventListener('touchstart', startR); document.addEventListener('touchend', stopR); document.addEventListener('touchmove', doR);
 
-    ui.file.onclick = () => { ui.file.value = null; };
-    ui.file.addEventListener('change', async (e) => {
-        const f = e.target.files[0]; if(!f) return;
-        ui.settings.classList.remove('open'); setStatus(`Load: ${f.name}`); showLoad(); await sleep(50); 
-        try {
-            ui.controls.style.display = 'flex'; const n = f.name.toLowerCase();
-            if(n.endsWith('.zip')) await loadZip(f); else if(n.endsWith('.fb2')) await loadFb2(f);
-            else if(n.endsWith('.epub')) await loadEpub(f); else if(n.endsWith('.pdf')) await loadPdf(f);
-            else render(await f.text()); setStatus(f.name);
-        } catch(err) { alert(err.message); setStatus("Ошибка"); } finally { hideLoad(); }
-    });
-
+    // --- PARSERS ---
     async function loadZip(f) {
         const z = new JSZip(); const c = await z.loadAsync(f);
         let t=null, n=""; for(let k in c.files){if(k.match(/\.(fb2|epub|txt)$/i) && !c.files[k].dir){t=c.files[k]; n=k.toLowerCase(); break;}}
@@ -389,7 +319,6 @@
         else if(n.endsWith('.fb2')) processFb2(await t.async("string"));
         else render(await t.async("string"));
     }
-
     async function loadFb2(f) { processFb2(await f.text()); }
     function processFb2(txt) {
         const doc=new DOMParser().parseFromString(txt,"text/xml"); const body=doc.querySelector("body");
@@ -399,16 +328,13 @@
         else { fb2Sections=[body]; ui.chapSel.add(new Option("Текст", 0)); loadFb2Chap(0); }
     }
     function loadFb2Chap(i) { resetTrans(); currentIdx = i; ui.chapSel.value = i; const s = fb2Sections[i]; let txt = ""; const ps = s.querySelectorAll("p,v,subtitle"); if(ps.length>0) ps.forEach(p=>txt+=p.textContent+"\n\n"); else txt = s.textContent; render(txt); }
-
     async function loadEpub(f) { fb2Sections = []; book = ePub(await f.arrayBuffer()); await book.ready; spine = book.spine.spineItems; ui.chapSel.innerHTML = ''; spine.forEach((_,i) => ui.chapSel.add(new Option(`${i+1}`, i))); loadEpubChap(0); }
-    async function loadEpubChap(i) { resetTrans(); currentIdx = i; ui.chapSel.value = i; showLoad(); try { const doc = await spine[i].load(book.load.bind(book)); let h = doc.body?.innerHTML || new XMLSerializer().serializeToString(doc); let t = h.replace(/<(br|div|p|h\d)[^>]*>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g,' ').replace(/\n\s*\n/g, '\n\n'); render(t); } catch(e) { render("Err: "+e.message); } finally { hideLoad(); } }
-
-    async function loadPdf(f) { ui.controls.style.display = 'none'; showLoad(); try { const pdf = await pdfjsLib.getDocument(await f.arrayBuffer()).promise; let t = ""; for(let i=1; i<=Math.min(pdf.numPages, 30); i++) { const p = await pdf.getPage(i); const c = await p.getTextContent(); t += c.items.map(s=>s.str).join(' ') + "\n\n"; } render(t); } catch(e) { alert("PDF Error"); } finally { hideLoad(); } }
+    async function loadEpubChap(i) { resetTrans(); currentIdx = i; ui.chapSel.value = i; ui.loader.style.display='flex'; try { const doc = await spine[i].load(book.load.bind(book)); let h = doc.body?.innerHTML || new XMLSerializer().serializeToString(doc); let t = h.replace(/<(br|div|p|h\d)[^>]*>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g,' ').replace(/\n\s*\n/g, '\n\n'); render(t); } catch(e) { alert("Err"); } finally { ui.loader.style.display='none'; } }
+    async function loadPdf(f) { ui.controls.style.display = 'none'; ui.loader.style.display='flex'; try { const pdf = await pdfjsLib.getDocument(await f.arrayBuffer()).promise; let t = ""; for(let i=1; i<=Math.min(pdf.numPages, 30); i++) { const p = await pdf.getPage(i); const c = await p.getTextContent(); t += c.items.map(s=>s.str).join(' ') + "\n\n"; } render(t); } catch(e) { alert("PDF Error"); } finally { ui.loader.style.display='none'; } }
 
     function render(txt) {
         ui.orig.innerHTML = ''; ui.trans.innerHTML = ''; ui.orig.scrollTop = 0;
         const arr = txt.split(/\n\s*\n/).filter(x => x.trim().length > 1);
-        if(!arr.length) { ui.orig.innerHTML = "<p>Empty</p>"; return; }
         const f1 = document.createDocumentFragment(); const f2 = document.createDocumentFragment();
         arr.forEach(s => {
             const d1 = document.createElement('div'); d1.className = 'orig-p'; d1.innerHTML = s.replace(/([a-zA-Zа-яА-Я0-9\u00C0-\u00FF'-]+)/g, '<span class="word" onclick="clickWord(event,this)">$1</span>'); f1.appendChild(d1);
@@ -417,141 +343,70 @@
         ui.orig.appendChild(f1); ui.trans.appendChild(f2); setupSync();
     }
 
+    // --- TRANS ---
     async function api(txt) {
         const u = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${ui.src.value}&tl=${ui.tgt.value}&dt=t&q=${encodeURIComponent(txt)}`;
         const r = await fetch(u); const d = await r.json(); return d[0].map(x=>x[0]).join('');
     }
+    async function doTrans(el) {
+        if(el.classList.contains('translated')) return; el.classList.add('loading','current');
+        try { const t = await api(el.dataset.text); el.innerHTML = t; el.classList.add('translated'); } catch { el.classList.add('error'); } finally { el.classList.remove('loading','current'); }
+    }
+    function resetTrans() { isTranslating=false; ui.btnStart.disabled=false; ui.btnStop.disabled=true; }
+    ui.btnStart.onclick = async () => { if(isTranslating)return; const els=Array.from(document.querySelectorAll('.trans-p')); if(!els.length)return; isTranslating=true; ui.btnStart.disabled=true; ui.btnStop.disabled=false; let idx=els.findIndex(e=>e.offsetTop+e.clientHeight>ui.trans.scrollTop); if(idx<0)idx=0; for(let i=idx; i<els.length; i++){ if(!isTranslating)break; if(!els[i].classList.contains('translated')){ await doTrans(els[i]); ui.bar.style.width=`${((i+1)/els.length)*100}%`; await sleep(500); } } ui.bar.style.width='0%'; resetTrans(); };
+    ui.btnStop.onclick = resetTrans;
 
-    // --- AUDIO SYSTEM (ROBUST) ---
+    // --- POPUP ---
     function playAudio(word) {
-        const btn = document.querySelector('.t-tts-btn');
-        if(btn) btn.classList.add('playing');
-
-        // 1. Try Google Audio first
-        const lang = ui.src.value === 'auto' ? 'en' : ui.src.value;
-        const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${encodeURIComponent(word)}`;
-        
-        const audio = new Audio(url);
-        
-        // Success handler
-        audio.onended = () => { if(btn) btn.classList.remove('playing'); };
-        
-        // Error handler (Fallback to Browser TTS)
-        audio.onerror = () => {
-            console.warn("Google Audio blocked, fallback to Browser TTS");
-            playBrowserTTS(word, lang);
-        };
-        
-        audio.play().catch(e => {
-            console.warn("Play failed, fallback");
-            playBrowserTTS(word, lang);
-        });
+        const lang = ui.src.value==='auto'?'en':ui.src.value;
+        new Audio(`https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${encodeURIComponent(word)}`).play();
     }
-
-    function playBrowserTTS(word, lang) {
-        const btn = document.querySelector('.t-tts-btn');
-        if(!window.speechSynthesis) { if(btn) btn.classList.remove('playing'); return; }
-        
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(word);
-        u.lang = lang === 'en' ? 'en-US' : (lang === 'de' ? 'de-DE' : lang);
-        
-        u.onend = u.onerror = () => { if(btn) btn.classList.remove('playing'); };
-        window.speechSynthesis.speak(u);
+    async function fetchPhonetics(w) {
+        const lang=ui.src.value; w=w.toLowerCase().replace(/[.,!?;:()"]/g,''); if(!w)return{ipa:null,cyr:null};
+        if(lang==='en'||lang==='auto') { try{const r=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w}`);if(r.ok){const d=await r.json(); return {ipa:d[0].phonetic, cyr:transliterateEn(w)};}}catch{} }
+        if(lang==='de') return {ipa:germanToIPA(w), cyr:transliterateDe(w)}; return {ipa:null,cyr:null};
     }
-
-    // --- SELECTION ---
-    let selText = "";
-    document.addEventListener('selectionchange', () => {
-        clearTimeout(window.selTimeout);
-        window.selTimeout = setTimeout(() => {
-            const sel = window.getSelection();
-            const txt = sel.toString().trim();
-            if(txt && txt.length > 1 && ui.orig.contains(sel.anchorNode)) {
-                selText = txt; ui.selBar.classList.add('visible');
-            } else { ui.selBar.classList.remove('visible'); }
-        }, 300);
-    });
-
-    ui.selBtn.onclick = (e) => { 
-        e.preventDefault(); 
-        e.stopPropagation();
-        if(selText) {
-            showPopup(selText, true); 
-            ui.selBar.classList.remove('visible'); 
-        }
-    };
-
-    // --- PHONETICS ---
-    async function fetchPhonetics(word) {
-        const lang = ui.src.value;
-        const w = word.toLowerCase().replace(/[.,!?;:()"]/g, '');
-        if(!w) return {ipa:null, cyr:null};
-        if(lang === 'en' || lang === 'auto') {
-            try { const r = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w}`); if(r.ok) { const d = await r.json(); const ipa = d[0].phonetic || d[0].phonetics.find(p=>p.text)?.text; const cyr = transliterateEn(w); return { ipa, cyr }; } } catch {}
-        }
-        if(lang === 'de') return { ipa: germanToIPA(w), cyr: transliterateDe(w) };
-        return {ipa:null, cyr:null};
-    }
-
     function germanToIPA(w){let s=w.toLowerCase();s=s.replace(/sch/g,'ʃ').replace(/ch/g,'ç').replace(/ei/g,'aɪ').replace(/ie/g,'iː').replace(/eu/g,'ɔʏ').replace(/äu/g,'ɔʏ').replace(/au/g,'aʊ').replace(/ä/g,'ɛ').replace(/ö/g,'ø').replace(/ü/g,'y').replace(/ß/g,'s').replace(/j/g,'j').replace(/v/g,'f').replace(/w/g,'v').replace(/z/g,'ts').replace(/sp/g,'ʃp').replace(/st/g,'ʃt');return `[${s}]`}
     function transliterateDe(w){let s=w.toLowerCase();s=s.replace(/sch/g,'ш').replace(/ch/g,'х').replace(/ei/g,'ай').replace(/ie/g,'i').replace(/eu/g,'ой').replace(/äu/g,'ой').replace(/au/g,'ау').replace(/ä/g,'э').replace(/ö/g,'ё').replace(/ü/g,'ю').replace(/ß/g,'сс').replace(/j/g,'й').replace(/v/g,'ф').replace(/w/g,'в').replace(/z/g,'ц').replace(/sp/g,'шп').replace(/st/g,'шт').replace(/h/g,'х');return s}
     function transliterateEn(w){const map={'sh':'ш','ch':'ч','th':'з','ph':'ф','oo':'у','ee':'и','ea':'и','ck':'к','qu':'кв','a':'а','b':'б','c':'к','d':'д','e':'е','f':'ф','g':'г','h':'х','i':'и','j':'дж','k':'к','l':'л','m':'м','n':'н','o':'о','p':'п','r':'р','s':'с','t':'т','u':'ю','v':'в','w':'в','x':'кс','y':'й','z':'з'};let s=w;for(let k in map)s=s.replace(new RegExp(k,'g'),map[k]);return s}
 
-    async function doTrans(el) {
-        if(el.classList.contains('translated') || el.classList.contains('loading')) return;
-        el.classList.add('loading', 'current');
-        try { const t = await api(el.dataset.text); el.innerHTML = t; el.classList.add('translated'); } catch { el.classList.add('error'); } finally { el.classList.remove('loading', 'current'); }
-    }
-
-    function resetTrans() { isTranslating=false; ui.btnStart.disabled=false; ui.btnStop.disabled=true; }
-
-    ui.btnStart.onclick = async () => {
-        if(isTranslating) return; const els = Array.from(document.querySelectorAll('.trans-p')); if(!els.length) return;
-        isTranslating = true; ui.btnStart.disabled = true; ui.btnStop.disabled = false;
-        let idx = els.findIndex(e => e.offsetTop + e.clientHeight > ui.trans.scrollTop); if(idx<0) idx=0;
-        for(let i=idx; i<els.length; i++) { if(!isTranslating) break; if(!els[i].classList.contains('translated')) { await doTrans(els[i]); ui.bar.style.width = `${((i+1)/els.length)*100}%`; await sleep(500); } }
-        ui.bar.style.width = '0%'; resetTrans();
-    };
-    ui.btnStop.onclick = resetTrans;
-
     async function showPopup(text, isPhrase) {
-        if(!text) return;
-        ui.tooltip.style.display = 'block';
-        if(isPhrase) { ui.tooltip.style.top = '50%'; ui.tooltip.style.left = '50%'; ui.tooltip.style.transform = 'translate(-50%, -50%)'; ui.tooltip.style.maxWidth='80%'; }
-        ui.tooltip.innerHTML = `<span class="t-word">${text.substring(0,50)}...</span><span class="t-trans">⏳</span>`;
-        
+        ui.tooltip.style.display='block';
+        if(isPhrase) { ui.tooltip.style.top='50%'; ui.tooltip.style.left='50%'; ui.tooltip.style.transform='translate(-50%,-50%)'; ui.tooltip.style.maxWidth='80%'; }
+        ui.tooltip.innerHTML=`<span class="t-word">${text.substring(0,50)}...</span>`;
         try {
-            const promises = [api(text)];
-            if(!isPhrase) promises.push(fetchPhonetics(text));
+            const promises=[api(text)]; if(!isPhrase) promises.push(fetchPhonetics(text));
             const [trans, phon] = await Promise.all(promises);
-            let ipaHtml='', cyrHtml='';
-            if(phon) { ipaHtml = phon.ipa ? `<span class="t-ipa">[${phon.ipa}]</span>` : ''; cyrHtml = phon.cyr ? `<span class="t-rus">"${phon.cyr}"</span>` : ''; }
-            
-            const safeText = text.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, ' ');
-
+            let ipa=phon?phon.ipa:'', cyr=phon?phon.cyr:'';
             ui.tooltip.innerHTML = `
-                <div class="tt-header">
-                    <span class="t-word">${text.substring(0,50)}${text.length>50?'...':''}</span>
-                    <button class="t-tts-btn" onclick="playAudio('${safeText}')">🔊</button>
-                </div>
-                ${ipaHtml} ${cyrHtml}
+                <div class="tt-header"><span class="t-word">${text.substring(0,50)}</span><button class="t-tts-btn" onclick="playAudio('${text.replace(/'/g,"\\'").replace(/\n/g,' ')}')">🔊</button></div>
+                ${ipa?`<span class="t-ipa">[${ipa}]</span>`:''} ${cyr?`<span class="t-rus">${cyr}</span>`:''}
                 <span class="t-trans">${trans}</span>
-                <button class="close-tip" onclick="document.getElementById('tooltip').style.display='none'">Закрыть</button>`;
-        } catch(e) { ui.tooltip.innerHTML = "Ошибка"; }
+                <button class="close-tip" onclick="document.getElementById('tooltip').style.display='none'">X</button>`;
+        } catch { ui.tooltip.innerHTML="Error"; }
     }
 
-    window.clickWord = async (e, el) => {
+    window.clickWord = (e, el) => {
         e.stopPropagation(); document.querySelectorAll('.word.active').forEach(x=>x.classList.remove('active')); el.classList.add('active');
-        const rect = el.getBoundingClientRect(); ui.tooltip.style.transform = 'none'; ui.tooltip.style.maxWidth = '250px';
-        ui.tooltip.style.top = (rect.bottom + 5) + 'px';
-        let left = rect.left; if(left + 250 > window.innerWidth) left = window.innerWidth - 260; ui.tooltip.style.left = left + 'px';
+        const r=el.getBoundingClientRect(); ui.tooltip.style.transform='none'; ui.tooltip.style.maxWidth='250px';
+        ui.tooltip.style.top=(r.bottom+5)+'px'; let l=r.left; if(l+250>window.innerWidth)l=window.innerWidth-260; ui.tooltip.style.left=l+'px';
         showPopup(el.innerText, false);
     };
 
+    let selText="";
+    document.addEventListener('selectionchange', () => {
+        clearTimeout(window.selTimeout);
+        window.selTimeout = setTimeout(() => {
+            const sel=window.getSelection(); const txt=sel.toString().trim();
+            if(txt && txt.length>1 && ui.orig.contains(sel.anchorNode)) { selText=txt; ui.selBar.classList.add('visible'); }
+            else ui.selBar.classList.remove('visible');
+        }, 300);
+    });
+    ui.selBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); if(selText){showPopup(selText, true); ui.selBar.classList.remove('visible');} };
+    
     document.addEventListener('click', (e) => { 
-        if(!e.target.closest('.word') && !e.target.closest('#tooltip') && e.target.id !== 'translateSelBtn') { 
-            ui.tooltip.style.display = 'none'; document.querySelectorAll('.word.active').forEach(x=>x.classList.remove('active')); 
+        if(!e.target.closest('.word') && !e.target.closest('#tooltip') && e.target.id!=='translateSelBtn') {
+            ui.tooltip.style.display='none'; document.querySelectorAll('.word.active').forEach(x=>x.classList.remove('active')); 
         }
     });
 
@@ -562,7 +417,7 @@
     }
     const s = (a, b) => { b.scrollTop = (a.scrollTop / (a.scrollHeight - a.clientHeight)) * (b.scrollHeight - b.clientHeight); }
 
-    function loadAny(i) { if(fb2Sections.length) loadFb2Chap(i); else if(spine && spine.length) loadEpubChap(i); }
+    function loadAny(i) { if(fb2Sections.length) loadFb2Chap(i); else if(spine&&spine.length) loadEpubChap(i); }
     ui.chapSel.onchange = (e) => loadAny(parseInt(e.target.value));
     document.getElementById('prevBtn').onclick = () => loadAny(currentIdx-1);
     document.getElementById('nextBtn').onclick = () => loadAny(currentIdx+1);

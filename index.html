@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ReaderTranslate</title>
+    <!-- ВАЖНО: Скрывает источник запроса для работы Google Audio -->
+    <meta name="referrer" content="no-referrer">
+    <title>Smart Reader</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#2d2d30">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%23007acc'><path d='M464 64H48C21.5 64 0 85.5 0 112v288c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48z'/></svg>">
@@ -73,6 +75,9 @@
         #tooltip { position: absolute; display: none; background: rgba(40,40,40,0.98); border: 1px solid #555; padding: 12px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); z-index: 9999; max-width: 250px; text-align: center; backdrop-filter: blur(10px); }
         .tt-header { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 6px; }
         .t-word { font-weight: 700; color: #fff; font-size: 1.2em; }
+        .t-tts-btn { background: transparent; border: 1px solid #666; color: #ccc; border-radius: 50%; width: 26px; height: 26px; font-size: 14px; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .t-tts-btn.playing { background: var(--success); color: #000; border-color: var(--success); }
+        
         .t-ipa { color: #8cf; font-size: 0.9em; display: block; margin-bottom: 2px; }
         .t-rus { color: #aaa; font-style: italic; font-size: 0.9em; display: block; margin-bottom: 8px; }
         .t-trans { color: #ddd; display:block; margin-bottom: 10px; font-size: 1.1em; border-top: 1px solid #555; padding-top: 8px; }
@@ -357,10 +362,45 @@
     ui.btnStop.onclick = resetTrans;
 
     // --- POPUP ---
+    // ROBUST AUDIO PLAYBACK
     function playAudio(word) {
-        const lang = ui.src.value==='auto'?'en':ui.src.value;
-        new Audio(`https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${encodeURIComponent(word)}`).play();
+        const lang = ui.src.value === 'auto' ? 'en' : ui.src.value;
+        const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${encodeURIComponent(word)}`;
+        
+        const audio = new Audio(url);
+        const btn = document.querySelector('.t-tts-btn');
+        if(btn) btn.classList.add('playing');
+        
+        audio.onended = () => { if(btn) btn.classList.remove('playing'); };
+        
+        audio.onerror = () => {
+            console.warn("Google Audio blocked, fallback to Browser TTS");
+            playBrowserTTS(word, lang);
+        };
+        
+        audio.play().catch(e => {
+            console.warn("Play failed, fallback");
+            playBrowserTTS(word, lang);
+        });
     }
+
+    function playBrowserTTS(word, lang) {
+        const btn = document.querySelector('.t-tts-btn');
+        if(!window.speechSynthesis) { 
+            if(btn) btn.classList.remove('playing'); 
+            return alert("TTS не поддерживается"); 
+        }
+        
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(word);
+        // Map common codes
+        const langMap = {'en':'en-US', 'de':'de-DE', 'fr':'fr-FR', 'es':'es-ES', 'it':'it-IT'};
+        u.lang = langMap[lang] || lang;
+        
+        u.onend = u.onerror = () => { if(btn) btn.classList.remove('playing'); };
+        window.speechSynthesis.speak(u);
+    }
+    
     async function fetchPhonetics(w) {
         const lang=ui.src.value; w=w.toLowerCase().replace(/[.,!?;:()"]/g,''); if(!w)return{ipa:null,cyr:null};
         if(lang==='en'||lang==='auto') { try{const r=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w}`);if(r.ok){const d=await r.json(); return {ipa:d[0].phonetic, cyr:transliterateEn(w)};}}catch{} }

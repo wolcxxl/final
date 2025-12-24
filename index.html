@@ -3,13 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Smart Reader v46 (Fix Selection)</title>
+    
+    <!-- ВАЖНО: Скрывает источник запроса от Google, чтобы обойти блокировку -->
+    <meta name="referrer" content="no-referrer">
+    
+    <title>Smart Reader v47 (Audio Fix)</title>
     
     <!-- PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#252526">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%23007acc'><path d='M464 64H48C21.5 64 0 85.5 0 112v288c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48zM240 384H64V128h176v256zm192 0H272V128h160v256z'/></svg>">
+    <link rel="manifest" id="manifest-placeholder">
 
     <!-- Libs -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -160,7 +165,7 @@
         .resizer::after { content: ""; width: 30px; height: 3px; background: #444; border-radius: 2px; }
         .resizer.active, .resizer:hover { background: #333; }
 
-        /* Text */
+        /* Text Blocks */
         .orig-p { margin-bottom: 1em; text-align: justify; padding: 2px; }
         
         .trans-p {
@@ -198,9 +203,15 @@
             display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
         }
         .t-tts-btn.playing { background: var(--success); color: #000; border-color: var(--success); }
+        
         .t-ipa { color: #8cf; font-size: 0.9em; display: block; margin-bottom: 2px; }
         .t-rus { color: #aaa; font-style: italic; font-size: 0.9em; display: block; margin-bottom: 8px; }
-        .t-trans { color: #ddd; display:block; margin-bottom: 10px; font-size: 1.1em; line-height: 1.3; border-top: 1px solid #555; padding-top: 8px; }
+        
+        .t-trans { 
+            color: #ddd; display:block; margin-bottom: 10px; font-size: 1.1em; line-height: 1.3; 
+            border-top: 1px solid #555; padding-top: 8px; 
+            max-height: 200px; overflow-y: auto;
+        }
         .close-tip { width: 100%; padding: 6px; background: rgba(255,255,255,0.1); border:none; color:#ccc; border-radius:4px; font-size:11px; }
 
         /* Action Bar */
@@ -233,7 +244,7 @@
 
 <div id="progressBar"></div>
 
-<!-- MENU -->
+<!-- STABLE MENU -->
 <div id="menu-bar">
     <button id="menu-toggle" title="Настройки">☰</button>
 </div>
@@ -274,8 +285,8 @@
         <div class="panel-head">Оригинал</div>
         <div id="origPanel" class="content-area">
             <div style="text-align:center; margin-top:30vh; color:#555;">
-                <p>Версия 46</p>
-                <p>Исправлено выделение фраз.</p>
+                <p>Версия 47 (Final Fix)</p>
+                <p>Audio Fix (Google + Fallback).</p>
             </div>
         </div>
     </div>
@@ -304,7 +315,7 @@
 
 <script>
     const manifest = {name:"Smart Reader",short_name:"Reader",start_url:".",display:"standalone",background_color:"#1e1e1e",theme_color:"#2d2d30",icons:[{src:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%23007acc'><rect width='512' height='512' fill='%232d2d30'/><path d='M464 64H48C21.5 64 0 85.5 0 112v288c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48zM240 384H64V128h176v256zm192 0H272V128h160v256z'/></svg>",sizes:"512x512",type:"image/svg+xml"}]};
-    document.getElementById('manifest-placeholder')?.setAttribute('href', URL.createObjectURL(new Blob([JSON.stringify(manifest)],{type:'application/json'})));
+    document.getElementById('manifest-placeholder').setAttribute('href', URL.createObjectURL(new Blob([JSON.stringify(manifest)],{type:'application/json'})));
 
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
     
@@ -323,9 +334,7 @@
 
     let book, spine, currentIdx = 0, isTranslating = false, fb2Sections = [];
     
-    // UI HANDLERS
     ui.menuBtn.onclick = () => ui.settings.classList.toggle('open');
-    
     ui.fontFam.onchange = () => { document.body.className = document.body.className.replace(/font-\w+/g, ''); if(ui.fontFam.value!=='ui') document.body.classList.add(`font-${ui.fontFam.value}`); };
     ui.fontSize.onchange = () => document.documentElement.style.setProperty('--font-size', ui.fontSize.value);
     ui.boldBtn.onclick = () => { document.body.classList.toggle('font-bold'); ui.boldBtn.classList.toggle('active-state'); ui.boldBtn.style.background = document.body.classList.contains('font-bold') ? '#fff' : '#444'; ui.boldBtn.style.color = document.body.classList.contains('font-bold') ? '#000' : '#fff'; };
@@ -335,7 +344,6 @@
     const hideLoad = () => ui.loader.style.display = 'none';
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-    // LAYOUT & RESIZE
     let isVertical = true;
     function updateLayout() {
         if(isVertical) {
@@ -361,7 +369,6 @@
     ui.resizer.addEventListener('mousedown', startR); document.addEventListener('mouseup', stopR); document.addEventListener('mousemove', doR);
     ui.resizer.addEventListener('touchstart', startR); document.addEventListener('touchend', stopR); document.addEventListener('touchmove', doR);
 
-    // FILE
     ui.file.onclick = () => { ui.file.value = null; };
     ui.file.addEventListener('change', async (e) => {
         const f = e.target.files[0]; if(!f) return;
@@ -415,15 +422,42 @@
         const r = await fetch(u); const d = await r.json(); return d[0].map(x=>x[0]).join('');
     }
 
-    // --- GOOGLE AUDIO ---
+    // --- AUDIO SYSTEM (ROBUST) ---
     function playAudio(word) {
-        const lang = ui.src.value === 'auto' ? 'en' : ui.src.value;
-        const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${encodeURIComponent(word)}`;
-        const audio = new Audio(url);
         const btn = document.querySelector('.t-tts-btn');
         if(btn) btn.classList.add('playing');
-        audio.onended = audio.onerror = () => { if(btn) btn.classList.remove('playing'); };
-        audio.play().catch(e => alert("Audio Err"));
+
+        // 1. Try Google Audio first
+        const lang = ui.src.value === 'auto' ? 'en' : ui.src.value;
+        const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${encodeURIComponent(word)}`;
+        
+        const audio = new Audio(url);
+        
+        // Success handler
+        audio.onended = () => { if(btn) btn.classList.remove('playing'); };
+        
+        // Error handler (Fallback to Browser TTS)
+        audio.onerror = () => {
+            console.warn("Google Audio blocked, fallback to Browser TTS");
+            playBrowserTTS(word, lang);
+        };
+        
+        audio.play().catch(e => {
+            console.warn("Play failed, fallback");
+            playBrowserTTS(word, lang);
+        });
+    }
+
+    function playBrowserTTS(word, lang) {
+        const btn = document.querySelector('.t-tts-btn');
+        if(!window.speechSynthesis) { if(btn) btn.classList.remove('playing'); return; }
+        
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(word);
+        u.lang = lang === 'en' ? 'en-US' : (lang === 'de' ? 'de-DE' : lang);
+        
+        u.onend = u.onerror = () => { if(btn) btn.classList.remove('playing'); };
+        window.speechSynthesis.speak(u);
     }
 
     // --- SELECTION ---
@@ -439,7 +473,6 @@
         }, 300);
     });
 
-    // CHANGE: CLICK instead of MOUSEDOWN
     ui.selBtn.onclick = (e) => { 
         e.preventDefault(); 
         e.stopPropagation();
@@ -484,12 +517,8 @@
 
     async function showPopup(text, isPhrase) {
         if(!text) return;
-        
         ui.tooltip.style.display = 'block';
-        if(isPhrase) { 
-            ui.tooltip.style.top = '50%'; ui.tooltip.style.left = '50%'; 
-            ui.tooltip.style.transform = 'translate(-50%, -50%)'; ui.tooltip.style.maxWidth='80%'; 
-        }
+        if(isPhrase) { ui.tooltip.style.top = '50%'; ui.tooltip.style.left = '50%'; ui.tooltip.style.transform = 'translate(-50%, -50%)'; ui.tooltip.style.maxWidth='80%'; }
         ui.tooltip.innerHTML = `<span class="t-word">${text.substring(0,50)}...</span><span class="t-trans">⏳</span>`;
         
         try {
@@ -499,7 +528,6 @@
             let ipaHtml='', cyrHtml='';
             if(phon) { ipaHtml = phon.ipa ? `<span class="t-ipa">[${phon.ipa}]</span>` : ''; cyrHtml = phon.cyr ? `<span class="t-rus">"${phon.cyr}"</span>` : ''; }
             
-            // Clean quotes and NEWLINES for audio button
             const safeText = text.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, ' ');
 
             ui.tooltip.innerHTML = `
@@ -510,10 +538,7 @@
                 ${ipaHtml} ${cyrHtml}
                 <span class="t-trans">${trans}</span>
                 <button class="close-tip" onclick="document.getElementById('tooltip').style.display='none'">Закрыть</button>`;
-        } catch(e) { 
-            console.error(e);
-            ui.tooltip.innerHTML = "Ошибка"; 
-        }
+        } catch(e) { ui.tooltip.innerHTML = "Ошибка"; }
     }
 
     window.clickWord = async (e, el) => {
